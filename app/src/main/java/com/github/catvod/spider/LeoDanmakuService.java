@@ -385,12 +385,12 @@ public class LeoDanmakuService {
                     } else {
                         DanmakuSpider.log("自动搜索未找到任何结果");
                         // 显示提示
-                        activity.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Utils.safeShowToast(activity, "自动搜索未找到弹幕，请手动搜索");
-                            }
-                        });
+//                        activity.runOnUiThread(new Runnable() {
+//                            @Override
+//                            public void run() {
+//                                Utils.safeShowToast(activity, "自动搜索未找到弹幕，请手动搜索");
+//                            }
+//                        });
                     }
 
                     synchronized (lock) {
