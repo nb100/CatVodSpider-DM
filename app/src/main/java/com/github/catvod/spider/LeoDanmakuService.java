@@ -12,15 +12,17 @@ import org.json.JSONObject;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 
 public class LeoDanmakuService {
 
     // 线程池
     private static final ExecutorService searchExecutor = Executors.newFixedThreadPool(4);
-    // 添加防重复推送的静态变量
-    private static long lastPushTime = 0;
+    // 优化防重复推送：针对每个URL记录推送时间
+    private static final Map<String, Long> lastPushTimes = new ConcurrentHashMap<>();
     private static final long PUSH_MIN_INTERVAL = 3000; // 3秒内不重复推送
 
     // 在 LeoDanmakuService 类中添加缓存相关字段
@@ -478,13 +480,25 @@ public class LeoDanmakuService {
 
     // 直接推送弹幕URL
     public static void pushDanmakuDirect(DanmakuItem danmakuItem, Activity activity, boolean isAuto) {
-        // 防重复推送检查
-//        long currentTime = System.currentTimeMillis();
-//        if (currentTime - lastPushTime < PUSH_MIN_INTERVAL) {
-//            DanmakuSpider.log("⚠️ 推送过于频繁，跳过本次推送: " + danmakuItem.getDanmakuUrl());
-//            return;
-//        }
-//        lastPushTime = currentTime;
+        String danmakuUrl = danmakuItem.getDanmakuUrl();
+        if (TextUtils.isEmpty(danmakuUrl)) {
+            DanmakuSpider.log("⚠️ 推送弹幕URL为空，跳过");
+            return;
+        }
+
+        long currentTime = System.currentTimeMillis();
+
+        // 检查此URL的上次推送时间
+        Long lastPush = lastPushTimes.get(danmakuUrl);
+        if (lastPush != null && (currentTime - lastPush < PUSH_MIN_INTERVAL)) {
+            DanmakuSpider.log("⚠️ 推送过于频繁 (同一URL)，跳过: " + danmakuUrl);
+            return;
+        }
+
+        // 更新推送时间并清理旧记录
+        lastPushTimes.put(danmakuUrl, currentTime);
+        cleanupOldPushTimes(currentTime);
+
         // 记录弹幕URL（这个可以在主线程执行）
         DanmakuSpider.recordDanmakuUrl(danmakuItem, isAuto);
 
@@ -502,8 +516,20 @@ public class LeoDanmakuService {
         } else {
             // 已经在子线程，直接执行
             DanmakuSpider.log("已经在子线程，直接执行弹幕推送");
-
             pushDanmakuInThread(danmakuItem, activity);
+        }
+    }
+
+    // 清理旧的推送记录，防止Map无限增大
+    private static void cleanupOldPushTimes(long currentTime) {
+        // 清理超过5分钟的记录
+        long cleanupThreshold = 5 * 60 * 1000;
+        Iterator<Map.Entry<String, Long>> iterator = lastPushTimes.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Long> entry = iterator.next();
+            if (currentTime - entry.getValue() > cleanupThreshold) {
+                iterator.remove();
+            }
         }
     }
 
