@@ -18,6 +18,7 @@ import com.github.catvod.net.OkHttp;
 import com.google.gson.Gson;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,8 +61,8 @@ public class DanmakuScanner {
         }
     }
 
-    private static final Map<String, PendingPush> pendingPushes = new HashMap<>();
-    private static final Map<String, Long> lastPushTime = new HashMap<>();
+    private static final Map<String, PendingPush> pendingPushes = new ConcurrentHashMap<>();
+    private static final Map<String, Long> lastPushTime = new ConcurrentHashMap<>();
 
     private static boolean isFirstDetection = true;
 

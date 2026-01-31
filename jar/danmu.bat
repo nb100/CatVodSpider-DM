@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul 2>&1
 
 del "%~dp0\danmu.jar"
 rd /s/q "%~dp0\Smali_classes"
@@ -18,7 +19,6 @@ move "%~dp0\Smali_classes\smali\com\github\catvod\js" "%~dp0\spider.jar\smali\co
 move "%~dp0\Smali_classes\smali\com\github\catvod\net" "%~dp0\spider.jar\smali\com\github\catvod\"
 move "%~dp0\Smali_classes\smali\org\slf4j" "%~dp0\spider.jar\smali\org\slf4j\"
 
-// 修改：构建时排除 assets 目录
 if exist "%~dp0\spider.jar\assets" rd /s/q "%~dp0\spider.jar\assets"
 java -jar "%~dp0\3rd\apktool_2.11.0.jar" b "%~dp0\spider.jar" -c
 
