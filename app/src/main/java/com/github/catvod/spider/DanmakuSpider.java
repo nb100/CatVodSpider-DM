@@ -15,10 +15,10 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DanmakuSpider extends Spider {
 
@@ -28,7 +28,7 @@ public class DanmakuSpider extends Spider {
     private static WebServer webServer;
 
     // 日志
-    private static final ArrayList<String> logBuffer = new ArrayList<>();
+    private static final List<String> logBuffer = new CopyOnWriteArrayList<>();
     private static final int MAX_LOG_SIZE = 1000;
 
     /**

@@ -26,6 +26,7 @@ public class GoProxySpider extends Spider {
     
     // 用于确保健康检查run方法串行执行的锁
     private static final Object healthCheckLock = new Object();
+    private static volatile boolean assetExists = true;
 
     private static String goProxy = "";
     private static final long HEALTH_INTERVAL = 1000; // 1秒间隔
@@ -66,6 +67,10 @@ public class GoProxySpider extends Spider {
      * @param context
      */
     public static void startHealthCheck(Context context) {
+        if (!assetExists) {
+            SpiderDebug.log("goProxy asset missing, not starting health check.");
+            return;
+        }
         if (healthCheckTimer != null) {
             SpiderDebug.log("Health check timer already running");
             return;
@@ -163,7 +168,16 @@ public class GoProxySpider extends Spider {
                 SpiderDebug.log("exe ret " + exec.waitFor());
             } catch (Exception ex) {
                 SpiderDebug.log("启动 goProxy异常：" + ex.getMessage());
-                safeRunOnUiThread(() -> Toast.makeText(context, abs + "启动 goProxy异常：" + ex.getMessage(), Toast.LENGTH_SHORT).show());
+                if (ex.getMessage() != null && ex.getMessage().startsWith("资源文件不存在: assets")) {
+                    assetExists = false;
+                    if (healthCheckTimer != null) {
+                        healthCheckTimer.cancel();
+                        healthCheckTimer = null;
+                    }
+                    safeRunOnUiThread(() -> Toast.makeText(context, "goProxy资源文件缺失，相关功能无法使用", Toast.LENGTH_LONG).show());
+                } else {
+                    safeRunOnUiThread(() -> Toast.makeText(context, abs + "启动 goProxy异常：" + ex.getMessage(), Toast.LENGTH_SHORT).show());
+                }
             }
         });
     }
