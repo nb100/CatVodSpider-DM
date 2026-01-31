@@ -45,6 +45,10 @@ public class GoProxySpider extends Spider {
     }
 
     private void checkAndRestartGoProxy(Context context) {
+        if (!assetExists) {
+            SpiderDebug.log("goProxy asset missing, not restarting goProxy.");
+            return;
+        }
         execute(() -> {
             try {
                 JsonObject json = new Gson().fromJson(OkHttp.string("http://127.0.0.1:5575/health"), JsonObject.class);
@@ -81,6 +85,12 @@ public class GoProxySpider extends Spider {
             @Override
             public void run() {
                 synchronized (healthCheckLock) {
+                    if (!assetExists && healthCheckTimer != null) {
+                        healthCheckTimer.cancel();
+                        healthCheckTimer = null;
+                        return;
+                    }
+
                     boolean isHealthy = false;
                     try {
                         JsonObject json = new Gson().fromJson(OkHttp.string("http://127.0.0.1:5575/health"), JsonObject.class);
@@ -110,7 +120,7 @@ public class GoProxySpider extends Spider {
                     }
                 }
             }
-        }, 0, HEALTH_INTERVAL);
+        }, 2000, HEALTH_INTERVAL);
 
         SpiderDebug.log("Health check thread started");
     }
@@ -120,6 +130,10 @@ public class GoProxySpider extends Spider {
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
             get().handler.post(() -> Toast.makeText(context, "安卓版本过低，无法启动goProxy", Toast.LENGTH_SHORT).show());
+            return;
+        }
+
+        if (!assetExists) {
             return;
         }
 
@@ -168,6 +182,7 @@ public class GoProxySpider extends Spider {
                 SpiderDebug.log("exe ret " + exec.waitFor());
             } catch (Exception ex) {
                 SpiderDebug.log("启动 goProxy异常：" + ex.getMessage());
+                assetExists = false;
                 if (healthCheckTimer != null) {
                     healthCheckTimer.cancel();
                     healthCheckTimer = null;

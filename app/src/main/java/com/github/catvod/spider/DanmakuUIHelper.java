@@ -649,7 +649,7 @@ public class DanmakuUIHelper {
                     titleLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 16), dpToPx(activity, 20), dpToPx(activity, 16));
 
                     TextView titleText = new TextView(activity);
-                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-31 20:43");
+                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-31 23:51");
                     titleText.setTextSize(20);
                     titleText.setTextColor(Color.WHITE);
                     titleText.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -1640,23 +1640,20 @@ public class DanmakuUIHelper {
             resultItem.setTextColor(TEXT_PRIMARY);
         }
 
-        // 设置网格布局参数 - 使用权重实现等宽布局
+        // 设置网格布局参数
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+        params.height = GridLayout.LayoutParams.WRAP_CONTENT; // 高度自适应
 
-        // 宽度设置为0，由权重控制，实现等宽效果
-        params.width = 0;
-
-        // 高度自适应内容
-        params.height = GridLayout.LayoutParams.WRAP_CONTENT;
-
-        // 列规范：每个按钮占据一列，权重为1，实现等宽
-        params.columnSpec = GridLayout.spec(
-                GridLayout.UNDEFINED,  // 列索引（自动分配）
-                1f                     // 权重为1，等宽分配
-        );
-
-        // 行规范：高度自适应内容
-        params.rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        // 兼容安卓7.0以下版本
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            // 在Android 7.0 (API 24) 及以上版本使用权重实现等宽
+            params.width = 0;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            params.rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        } else {
+            // 在旧版本上使用固定宽度，以兼容旧版GridLayout
+            params.width = dpToPx(activity, 80); // 约4个字符宽度
+        }
 
         // 设置外边距
         int margin = dpToPx(activity, 6);
@@ -1823,23 +1820,20 @@ public class DanmakuUIHelper {
             resultItem.setTextColor(DARK_TEXT_PRIMARY);
         }
 
-        // 设置网格布局参数 - 使用权重实现等宽布局
+        // 设置网格布局参数
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+        params.height = GridLayout.LayoutParams.WRAP_CONTENT; // 高度自适应
 
-        // 宽度设置为0，由权重控制，实现等宽效果
-        params.width = 0;
-
-        // 高度自适应内容
-        params.height = GridLayout.LayoutParams.WRAP_CONTENT;
-
-        // 列规范：每个按钮占据一列，权重为1，实现等宽
-        params.columnSpec = GridLayout.spec(
-                GridLayout.UNDEFINED,  // 列索引（自动分配）
-                1f                     // 权重为1，等宽分配
-        );
-
-        // 行规范：高度自适应内容
-        params.rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        // 兼容安卓7.0以下版本
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            // 在Android 7.0 (API 24) 及以上版本使用权重实现等宽
+            params.width = 0;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            params.rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        } else {
+            // 在旧版本上使用固定宽度，以兼容旧版GridLayout
+            params.width = dpToPx(activity, 80); // 约4个字符宽度
+        }
 
         // 设置外边距
         int margin = dpToPx(activity, 6);
