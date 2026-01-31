@@ -168,16 +168,11 @@ public class GoProxySpider extends Spider {
                 SpiderDebug.log("exe ret " + exec.waitFor());
             } catch (Exception ex) {
                 SpiderDebug.log("启动 goProxy异常：" + ex.getMessage());
-                if (ex.getMessage() != null && ex.getMessage().startsWith("资源文件不存在: assets")) {
-                    assetExists = false;
-                    if (healthCheckTimer != null) {
-                        healthCheckTimer.cancel();
-                        healthCheckTimer = null;
-                    }
-                    safeRunOnUiThread(() -> Toast.makeText(context, "goProxy资源文件缺失，相关功能无法使用", Toast.LENGTH_LONG).show());
-                } else {
-                    safeRunOnUiThread(() -> Toast.makeText(context, abs + "启动 goProxy异常：" + ex.getMessage(), Toast.LENGTH_SHORT).show());
+                if (healthCheckTimer != null) {
+                    healthCheckTimer.cancel();
+                    healthCheckTimer = null;
                 }
+                safeRunOnUiThread(() -> Toast.makeText(context, abs + "启动 goProxy异常：" + ex.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
     }

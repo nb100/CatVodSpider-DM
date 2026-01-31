@@ -234,20 +234,7 @@ public class DanmakuSpider extends Spider {
                                 } else if (id.equals("lp_config")) {
                                     DanmakuUIHelper.showLpConfigDialog(ctx);
                                 } else if (id.equals("danmaku_style")) {
-                                    // 切换弹幕UI风格
-                                    if ("模板一".equals(config.getDanmakuStyle())) {
-                                        config.setDanmakuStyle("模板二");
-                                    } else {
-                                        config.setDanmakuStyle("模板一");
-                                    }
-                                    DanmakuConfigManager.saveConfig(ctx, config);
-
-                                    // 更新UI显示
-                                    DanmakuSpider.log("弹幕UI风格切换: " + config.getDanmakuStyle());
-                                    Utils.safeShowToast(ctx, "弹幕UI风格已切换为: " + config.getDanmakuStyle());
-
-                                    // 重新加载页面以更新状态显示
-                                    refreshCategoryContent(ctx);
+                                    DanmakuUIHelper.showDanmakuStyleDialog(ctx);
                                 }
                             } catch (Exception e) {
                                 DanmakuSpider.log("显示对话框失败: " + e.getMessage());
@@ -285,7 +272,7 @@ public class DanmakuSpider extends Spider {
     }
 
     // 添加刷新分类内容的方法
-    private void refreshCategoryContent(Activity ctx) {
+    public void refreshCategoryContent(Activity ctx) {
         try {
             String content = categoryContent("", "", false, new HashMap<>());
             if (!TextUtils.isEmpty(content)) {
