@@ -1,8 +1,10 @@
 package com.github.catvod.spider;
 
+import java.util.List;
+
 public class EpisodeInfo {
     private String episodeNum;
-    private String episodeName;
+    private List<String> episodeNames;
     private String episodeYear;
     private String episodeSeasonNum;
     private String seriesName;
@@ -17,12 +19,12 @@ public class EpisodeInfo {
         this.episodeNum = episodeNum;
     }
 
-    public String getEpisodeName() {
-        return episodeName;
+    public List<String> getEpisodeNames() {
+        return episodeNames;
     }
 
-    public void setEpisodeName(String episodeName) {
-        this.episodeName = episodeName;
+    public void setEpisodeNames(List<String> episodeNames) {
+        this.episodeNames = episodeNames;
     }
 
     public String getEpisodeYear() {
@@ -69,7 +71,7 @@ public class EpisodeInfo {
     public String toString() {
         return "EpisodeInfo{" +
                 "episodeNum='" + episodeNum + '\'' +
-                ", episodeName='" + episodeName + '\'' +
+                ", episodeNames=" + episodeNames +
                 ", episodeYear='" + episodeYear + '\'' +
                 ", episodeSeasonNum='" + episodeSeasonNum + '\'' +
                 ", seriesName='" + seriesName + '\'' +

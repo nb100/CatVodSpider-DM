@@ -33,7 +33,7 @@ public class DanmakuUtils {
     }
 
     // 提取标题（简化版）
-    public static String extractTitle(String src) {
+    public static String extractTitle2(String src) {
         if (TextUtils.isEmpty(src)) return "";
 
         String result = src.trim();
@@ -54,6 +54,8 @@ public class DanmakuUtils {
         result = result.replaceAll("【.*?】", "");
         result = result.replaceAll("\\[.*?\\]", "");
         result = result.replaceAll("\\(.*?\\)", "");
+        // 移除特殊字符
+        result = result.replaceAll("[\\\\/:*\"<>|丨]", "");
         // 清理中文标点
         result = result.replaceAll("[:：]", " ");
 
@@ -61,102 +63,26 @@ public class DanmakuUtils {
         String chinesePart = "";
         Matcher chineseMatcher = Pattern.compile("[\\u4e00-\\u9fff]+").matcher(result);
         if (chineseMatcher.find()) {
-            chinesePart = chineseMatcher.group();
+            // 获取所有中文字符序列
+            StringBuilder sb = new StringBuilder();
+            while (chineseMatcher.find()) {
+                sb.append(chineseMatcher.group());
+            }
+            chinesePart = sb.toString();
         }
 
         // 如果找到中文部分，优先使用中文
         if (!TextUtils.isEmpty(chinesePart)) {
-            return chinesePart.trim();
+            result = chinesePart.trim();
+        } else {
+            // 否则清理多余空格
+            result = result.replaceAll("\\s+", " ").trim();
         }
 
-        // 否则清理多余空格
-        result = result.replaceAll("\\s+", " ").trim();
+        if (!src.equals(result)) {
+            DanmakuSpider.log("🧹 清理标题: " + src + " -> " + result);
+        }
 
         return result;
-    }
-
-    // 生成视频签名（用于识别是否同一个视频）
-    public static String generateVideoSignature(String title) {
-        if (TextUtils.isEmpty(title)) return "";
-
-        String signature = title.trim().toLowerCase();
-
-        // 移除常见后缀（保留核心内容）
-        signature = signature.replaceAll("\\.(mp4|mkv|avi|rmvb|flv|web|dl|h265|h264|hevc)$", "");
-        signature = signature.replaceAll("\\d+[Pp]", "");
-        signature = signature.replaceAll("4k", "");
-        signature = signature.replaceAll("2160p", "");
-        signature = signature.replaceAll("1080p", "");
-        signature = signature.replaceAll("720p", "");
-        signature = signature.replaceAll("web-dl", "");
-        signature = signature.replaceAll("webdl", "");
-        signature = signature.replaceAll("h\\.?265", "");
-        signature = signature.replaceAll("h\\.?264", "");
-        signature = signature.replaceAll("hevc", "");
-        signature = signature.replaceAll("hdr", "");
-        signature = signature.replaceAll("avc", "");
-        signature = signature.replaceAll("aac", "");
-        signature = signature.replaceAll("ac3", "");
-
-        // 提取中文部分
-        StringBuilder chinesePart = new StringBuilder();
-        Matcher chineseMatcher = Pattern.compile("[\\u4e00-\\u9fff]+").matcher(signature);
-        while (chineseMatcher.find()) {
-            chinesePart.append(chineseMatcher.group());
-        }
-
-        if (chinesePart.length() > 0) {
-            return chinesePart.toString();
-        }
-
-        // 如果没有中文，提取英文单词（至少3个字母）
-        StringBuilder englishPart = new StringBuilder();
-        Matcher englishMatcher = Pattern.compile("\\b[a-zA-Z]{3,}\\b").matcher(signature);
-        while (englishMatcher.find()) {
-            englishPart.append(englishMatcher.group()).append(" ");
-        }
-
-        if (englishPart.length() > 0) {
-            return englishPart.toString().trim();
-        }
-
-        // 如果什么都没有，返回清理后的标题
-        return signature.replaceAll("\\s+", " ").trim();
-    }
-
-    // 判断两个视频签名是否相同
-    public static boolean isSameVideo(String signature1, String signature2) {
-        if (TextUtils.isEmpty(signature1) || TextUtils.isEmpty(signature2)) {
-            return false;
-        }
-
-        // 简单比较
-        if (signature1.equals(signature2)) {
-            return true;
-        }
-
-        // 或者一个包含另一个
-        if (signature1.contains(signature2) || signature2.contains(signature1)) {
-            return true;
-        }
-
-        // 计算相似度（简单版）
-        int minLen = Math.min(signature1.length(), signature2.length());
-        int maxLen = Math.max(signature1.length(), signature2.length());
-
-        if (minLen == 0 || maxLen == 0) {
-            return false;
-        }
-
-        // 如果较短的字符串至少70%的内容在较长的字符串中，认为是同一个视频
-        int matchCount = 0;
-        for (int i = 0; i < minLen; i++) {
-            if (signature2.contains(String.valueOf(signature1.charAt(i)))) {
-                matchCount++;
-            }
-        }
-
-        double similarity = (double) matchCount / minLen;
-        return similarity > 0.7;
     }
 }

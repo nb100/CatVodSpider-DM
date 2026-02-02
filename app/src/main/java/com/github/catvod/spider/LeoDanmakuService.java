@@ -28,6 +28,19 @@ public class LeoDanmakuService {
     // 在 LeoDanmakuService 类中添加缓存相关字段
     private static final long CACHE_EXPIRE_TIME = 30 * 60 * 1000; // 30分钟
 
+    // 新增：搜索结果封装类
+    public static class SearchResult {
+        public boolean found = false;
+        public double similarity = 0.0;
+        public DanmakuItem item = null;
+
+        public SearchResult(boolean found, double similarity, DanmakuItem item) {
+            this.found = found;
+            this.similarity = similarity;
+            this.item = item;
+        }
+    }
+
     // 执行搜索
     public static List<DanmakuItem> searchDanmaku(String keyword, Activity activity) {
         if (TextUtils.isEmpty(keyword)) return new ArrayList<>();
@@ -246,178 +259,96 @@ public class LeoDanmakuService {
         list.add(item);
     }
 
-    // 自动搜索
-    public static boolean autoSearch(EpisodeInfo episodeInfo, Activity activity) {
-        if (TextUtils.isEmpty(episodeInfo.getEpisodeName())) return false;
+    // 自动搜索 - 已修改为返回 SearchResult
+    public static SearchResult autoSearch(String searchKeyword, EpisodeInfo episodeInfo, Activity activity) {
+        if (TextUtils.isEmpty(searchKeyword)) {
+            return new SearchResult(false, 0, null);
+        }
 
-        final boolean[] found = {false};
-        final Object lock = new Object();
 
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                StringBuilder sb = new StringBuilder();
-                sb.append("开始搜索弹幕 ").append(episodeInfo.getEpisodeName());
+        List<DanmakuItem> results = searchDanmaku(searchKeyword, activity);
 
-                if (!TextUtils.isEmpty(episodeInfo.getEpisodeYear())) {
-                    sb.append("(").append(episodeInfo.getEpisodeYear()).append(")");
-                }
-                if (!TextUtils.isEmpty(episodeInfo.getEpisodeNum())) {
-                    sb.append(" ").append(episodeInfo.getEpisodeNum());
-                }
-//                Utils.safeShowToast(activity, sb.toString());
-                DanmakuSpider.log(sb.toString());
-            }
-        });
+        if (results.isEmpty()) {
+            DanmakuSpider.log("自动搜索未找到任何结果 for keyword: " + searchKeyword);
+            return new SearchResult(false, 0, null);
+        }
 
-        // 60秒超时
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                synchronized (lock) {
-                    if (!found[0]) {
-                        activity.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                DanmakuSpider.log("自动搜索超时（60秒）");
-//                        Toast.makeText(activity, "自动搜索超时（60秒）", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                        lock.notify();
-                    }
-                }
-            }
-        }, 60000);
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
+        // 3. 筛选匹配集数的结果 (如果集数信息可用)
+        List<DanmakuItem> matchedItems = new ArrayList<>();
+        if (!TextUtils.isEmpty(episodeInfo.getEpisodeNum())) {
+            for (DanmakuItem item : results) {
+                boolean isMatch = false;
                 try {
-                    if (TextUtils.isEmpty(episodeInfo.getEpisodeName())) {
-                        synchronized (lock) {
-                            lock.notify();
-                        }
-                        return;
+                    int epNum = Integer.parseInt(episodeInfo.getEpisodeNum());
+                    String format1 = String.format("第%d集", epNum);
+                    String format2 = String.format("_%02d", epNum);
+                    String format3 = String.format("_%d", epNum);
+                    String format4 = String.format("第%d期", epNum);
+                    String format5 = String.format(" %d ", epNum); // e.g. "SP 1"
+
+                    if (item.epTitle.contains(format1) || item.epTitle.contains(format2) ||
+                        item.epTitle.contains(format3) || item.epTitle.contains(format4) ||
+                        item.epTitle.contains(format5) || item.shortTitle.equals(String.valueOf(epNum))) {
+                        isMatch = true;
                     }
+                } catch (NumberFormatException e) {
+                    DanmakuSpider.log("集数格式错误: " + episodeInfo.getEpisodeNum());
+                }
 
-                    DanmakuSpider.log("自动搜索关键词: " + episodeInfo.getEpisodeName());
-                    List<DanmakuItem> results = searchDanmaku(episodeInfo.getEpisodeName(), activity);
-
-                    if (!results.isEmpty()) {
-                        List<DanmakuItem> matchedItems = new ArrayList<>();
-                        for (int i = 0; i < results.size(); i++) {
-                            DanmakuItem item = results.get(i);
-
-                            boolean isMatch = true;
-
-                            // 检查年份匹配
-                            if (!TextUtils.isEmpty(episodeInfo.getEpisodeYear())) {
-                                if (!item.title.contains(episodeInfo.getEpisodeYear())) {
-                                    isMatch = false;
-                                }
-                            }
-
-                            // 如果年份匹配成功或没有年份信息，检查集数匹配
-                            if (isMatch && !TextUtils.isEmpty(episodeInfo.getEpisodeNum())) {
-                                String episodeNum = episodeInfo.getEpisodeNum();
-                                try {
-                                    int epNum = Integer.parseInt(episodeNum);
-                                    // 定义多种可能的集数格式
-                                    String format1 = String.format("第%d集", epNum);
-                                    String format2 = String.format("_%02d", epNum); // 补零格式，如 _01
-                                    String format3 = String.format("_%d", epNum);   // 不补零格式，如 _1
-                                    String format4 = String.format("第%d期", epNum);
-
-                                    if (!item.epTitle.contains(format1) &&
-                                            !item.epTitle.contains(format2) &&
-                                            !item.epTitle.contains(format3) && !item.epTitle.contains(format4)) {
-                                        isMatch = false;
-                                    }
-                                } catch (NumberFormatException e) {
-                                    DanmakuSpider.log("集数格式错误: " + episodeNum);
-                                    isMatch = false;
-                                }
-                            }
-
-                            if (isMatch) {
-                                matchedItems.add(item);
-                            }
-                        }
-
-                        // 如果找到匹配项，使用匹配项；否则使用第一条
-                        DanmakuItem selectedItem;
-                        if (!matchedItems.isEmpty()) {
-                            if (matchedItems.size() == 1) {
-                                selectedItem = matchedItems.get(0);
-                                DanmakuSpider.log("🎯 找到唯一匹配的弹幕项: " + selectedItem.title + " - " + selectedItem.epTitle);
-                            } else {
-                                // 多个匹配项，计算相似度
-                                DanmakuItem bestMatch = null;
-                                double highestSimilarity = -1.0;
-
-                                for (DanmakuItem item : matchedItems) {
-                                    String titleToCompare = item.getAnimeTitle() != null ? item.getAnimeTitle().split("【")[0] : item.getTitle();
-                                    double similarity = calculateSimilarity(titleToCompare, episodeInfo.getEpisodeName());
-                                    // 如果动漫标题包含 "NaN"，则降低其相似度权重
-                                    if (item.getAnimeTitle() != null && item.getAnimeTitle().contains("NaN")) {
-                                        similarity -= 0.5; // 降低0.5的权重
-                                    }
-
-                                    if (similarity > highestSimilarity) {
-                                        highestSimilarity = similarity;
-                                        bestMatch = item;
-                                    }
-                                }
-                                selectedItem = bestMatch;
-                                DanmakuSpider.log("🎯 找到多个匹配项，选择相似度最高的: " + selectedItem.title + " - " + selectedItem.epTitle + " (相似度: " + highestSimilarity + ")");
-                            }
-                        } else {
-                            selectedItem = results.get(0); // 使用第一条作为默认选项
-                            DanmakuSpider.log("⚠️ 未找到精确匹配，使用第一条结果: " + selectedItem.title + " - " + selectedItem.epTitle);
-                        }
-
-                        DanmakuSpider.log("🎯 自动搜索找到结果: " + selectedItem);
-
-                        // 立即记录弹幕URL（在推送前）
-                        DanmakuSpider.recordDanmakuUrl(selectedItem, true);
-
-                        found[0] = true;
-
-                        pushDanmakuDirect(selectedItem, activity, true);
-                    } else {
-                        DanmakuSpider.log("自动搜索未找到任何结果");
-                        // 显示提示
-//                        activity.runOnUiThread(new Runnable() {
-//                            @Override
-//                            public void run() {
-//                                Utils.safeShowToast(activity, "自动搜索未找到弹幕，请手动搜索");
-//                            }
-//                        });
-                    }
-
-                    synchronized (lock) {
-                        lock.notify();
-                    }
-                } catch (Exception e) {
-                    DanmakuSpider.log("自动搜索异常: " + e.getMessage());
-                    synchronized (lock) {
-                        lock.notify();
-                    }
+                if (isMatch) {
+                    matchedItems.add(item);
                 }
             }
-        }).start();
+        } else {
+            // 如果没有集数信息，所有结果都视为“匹配”
+            matchedItems.addAll(results);
+        }
 
-        // 等待结果
-        synchronized (lock) {
-            try {
-                lock.wait();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+
+        DanmakuItem selectedItem = null;
+        double bestSimilarity = -1.0;
+
+        // 4. 从筛选结果中选择最佳匹配
+        // 使用的列表：如果 matchedItems 不为空则用它，否则用全部 results
+        List<DanmakuItem> listToSearch = !matchedItems.isEmpty() ? matchedItems : results;
+
+        for (DanmakuItem item : listToSearch) {
+            // 准备用于比较的标题
+            String rawTitle = item.getAnimeTitle() != null ? item.getAnimeTitle() : item.getTitle();
+
+            String titleToCompare = rawTitle.split("【")[0].trim();
+            String s2 = searchKeyword;
+            if (TextUtils.isEmpty(episodeInfo.getEpisodeYear())) {
+                // 使用原始 searchKeyword (不带年份) 进行相似度计算
+                // "先查找(年份)并替换成空字符串"
+                titleToCompare = titleToCompare.replaceAll("\\s*\\(\\d{4}\\)\\s*", "");
+            } else {
+                s2 = searchKeyword + "(" + episodeInfo.getEpisodeYear() + ")";
+            }
+
+            double similarity = calculateSimilarity(titleToCompare, s2);
+
+            DanmakuSpider.log("🤔 比较: " + titleToCompare + " vs " + s2 + " (相似度: " + similarity + ")");
+
+            if (item.getAnimeTitle() != null && item.getAnimeTitle().contains("NaN")) {
+                similarity -= 0.5; // 惩罚
+            }
+
+            if (similarity > bestSimilarity) {
+                bestSimilarity = similarity;
+                selectedItem = item;
             }
         }
 
-        return found[0];
+        if (selectedItem != null) {
+            String listName = !matchedItems.isEmpty() ? "筛选列表" : "全部结果";
+            DanmakuSpider.log("🎯 在 " + listName + " 中自动搜索选择: " + selectedItem.title + " - " + selectedItem.epTitle + " (相似度: " + bestSimilarity + ")");
+            return new SearchResult(true, bestSimilarity, selectedItem);
+        }
+
+        return new SearchResult(false, 0, null);
     }
+
 
     private static double calculateSimilarity(String s1, String s2) {
         String longer = s1, shorter = s2;
@@ -467,9 +398,8 @@ public class LeoDanmakuService {
         if (TextUtils.isEmpty(keyword)) return results;
 
         try {
-            String cleanKeyword = DanmakuUtils.extractTitle(keyword);
-            if (!TextUtils.isEmpty(cleanKeyword)) {
-                results = searchDanmaku(cleanKeyword, activity);
+            if (!TextUtils.isEmpty(keyword)) {
+                results = searchDanmaku(keyword, activity);
             }
         } catch (Exception e) {
             DanmakuSpider.log("手动搜索失败: " + e.getMessage());

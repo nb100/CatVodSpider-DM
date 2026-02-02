@@ -192,16 +192,41 @@ public class DanmakuScanner {
         // 提取剧集信息
         String seriesName = extractSeriesName(media.getTitle());
         String episodeNum = extractEpisodeNum(media.getArtist());
-        // 优先从剧集名中提取
         String year = extractYear(media.getArtist());
         if (TextUtils.isEmpty(year)) {
             year = extractYear2(media.getTitle());
         }
         String seasonNum = extractSeasonNum(media.getArtist());
 
+        // 创建剧集名称列表
+        List<String> episodeNames = new ArrayList<>();
+        String extractTitle1 = extractTitle(media.getTitle());
+        String extractTitle2 = DanmakuUtils.extractTitle2(extractTitle1);
+        String extractTitle3 = null;
+        if (!extractTitle2.equals(extractTitle1)) {
+            extractTitle3 = DanmakuUtils.extractTitle2(media.getTitle());
+        }
+        String cachedName = SharedPreferencesService.getSearchKeywordCache(act, media.getTitle());
+
+        if (!TextUtils.isEmpty(cachedName) && !cachedName.equals(media.getTitle())) {
+            episodeNames.add(cachedName);
+        }
+        if (!TextUtils.isEmpty(extractTitle2) && !episodeNames.contains(extractTitle2)) {
+            episodeNames.add(extractTitle2);
+        }
+        if (!TextUtils.isEmpty(extractTitle1) && !episodeNames.contains(extractTitle1)) {
+            episodeNames.add(extractTitle1);
+        }
+        if (!TextUtils.isEmpty(extractTitle3) && !episodeNames.contains(extractTitle3)) {
+            episodeNames.add(extractTitle3);
+        }
+        if (!TextUtils.isEmpty(media.getTitle()) && !episodeNames.contains(media.getTitle())) {
+            episodeNames.add(media.getTitle());
+        }
+
         EpisodeInfo episodeInfo = new EpisodeInfo();
         episodeInfo.setEpisodeNum(episodeNum);
-        episodeInfo.setEpisodeName(SharedPreferencesService.getSearchKeywordCache(act, cleanTitle(media.getTitle())));
+        episodeInfo.setEpisodeNames(episodeNames);
         episodeInfo.setEpisodeYear(year);
         episodeInfo.setEpisodeSeasonNum(seasonNum);
         episodeInfo.setSeriesName(seriesName);
@@ -513,7 +538,7 @@ public class DanmakuScanner {
     }
 
     // 清理标题
-    private static String cleanTitle(String title) {
+    private static String extractTitle(String title) {
         if (TextUtils.isEmpty(title)) {
             return "";
         }
@@ -1071,7 +1096,7 @@ public class DanmakuScanner {
         long currentTime = System.currentTimeMillis();
 
         // 检查是否有有效的剧集名
-        if (TextUtils.isEmpty(lastEpisodeInfo.getSeriesName())) {
+        if (lastEpisodeInfo.getEpisodeNames() == null || lastEpisodeInfo.getEpisodeNames().isEmpty()) {
             DanmakuSpider.log("⚠️ 未检测到剧集名，不进行换集检测");
             return;
         }
@@ -1097,22 +1122,15 @@ public class DanmakuScanner {
                 // 生成推送key
                 String pushKey = generateSignature(lastEpisodeInfo);
 
-                // 检查是否最近已经推送过相同的弹幕
-//                    Long lastPush = lastPushTime.get(nextDanmakuItem.getDanmakuUrl());
-//                    if (lastPush != null && (currentTime - lastPush) < 60000) {
-//                        DanmakuSpider.log("⚠️ 最近1分钟内已推送过相同弹幕，跳过");
-//                        return;
-//                    }
-
                 // 延迟推送，等待视频播放
-                scheduleDelayedPush(nextDanmakuItem, activity, lastEpisodeInfo.getEpisodeName(), pushKey);
+                scheduleDelayedPush(nextDanmakuItem, activity, lastEpisodeInfo.getEpisodeNames().get(0), pushKey);
             } else {
                 DanmakuSpider.log("⚠️ 无法直接获取下一个弹幕URL，重新查询");
-                LeoDanmakuService.autoSearch(lastEpisodeInfo, activity);
+                iterativeAutoSearch(lastEpisodeInfo, activity);
             }
         } else {
             // 不同的剧集系列，更新记录
-            DanmakuSpider.log("🎬 剧集名: " + lastEpisodeInfo.getEpisodeName() + ", 年份: " + lastEpisodeInfo.getEpisodeYear() + ", 季数: " + lastEpisodeInfo.getEpisodeSeasonNum() + ", 集数: " + lastEpisodeInfo.getEpisodeNum());
+            DanmakuSpider.log("🎬 剧集名: " + lastEpisodeInfo.getEpisodeNames().get(0) + ", 年份: " + lastEpisodeInfo.getEpisodeYear() + ", 季数: " + lastEpisodeInfo.getEpisodeSeasonNum() + ", 集数: " + lastEpisodeInfo.getEpisodeNum());
 
             currentSeriesName = lastEpisodeInfo.getSeriesName();
             currentEpisodeNum = lastEpisodeInfo.getEpisodeNum();
@@ -1300,8 +1318,8 @@ public class DanmakuScanner {
                             DanmakuSpider.log("[按钮点击] 打开搜索对话框");
 
                             String title = "";
-                            if (lastEpisodeInfo != null) {
-                                title = lastEpisodeInfo.getEpisodeName();
+                            if (lastEpisodeInfo != null && lastEpisodeInfo.getEpisodeNames() != null && !lastEpisodeInfo.getEpisodeNames().isEmpty()) {
+                                title = lastEpisodeInfo.getEpisodeNames().get(0);
                             }
                             DanmakuUIHelper.showSearchDialog(activity, title);
                         }
@@ -1510,17 +1528,47 @@ public class DanmakuScanner {
             return;
         }
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                boolean found = LeoDanmakuService.autoSearch(episodeInfo, activity);
-                if (!found && activity != null && !activity.isFinishing()) {
-                    activity.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-//                            Utils.safeShowToast(activity,"Leo弹幕获取失败，请手动搜索");
-                        }
-                    });
+        iterativeAutoSearch(episodeInfo, activity);
+    }
+
+    private static void iterativeAutoSearch(EpisodeInfo episodeInfo, final Activity activity) {
+        new Thread(() -> {
+            List<String> episodeNames = episodeInfo.getEpisodeNames();
+            if (episodeNames == null || episodeNames.isEmpty()) {
+                DanmakuSpider.log("❌ 剧集名称列表为空，无法执行迭代搜索");
+                return;
+            }
+
+            LeoDanmakuService.SearchResult bestResult = null;
+
+            DanmakuSpider.log("迭代列表：" + episodeNames);
+
+            for (String name : episodeNames) {
+                if (TextUtils.isEmpty(name)) continue;
+
+                DanmakuSpider.log("🔍 迭代搜索中，尝试名称: " + name);
+                LeoDanmakuService.SearchResult currentResult = LeoDanmakuService.autoSearch(name, episodeInfo, activity);
+
+                if (currentResult.found) {
+                    if (currentResult.similarity >= 0.5) {
+                        DanmakuSpider.log("✅ 找到高相似度结果 (>=50%)，立即推送并停止搜索");
+                        LeoDanmakuService.pushDanmakuDirect(currentResult.item, activity, true);
+                        return; // 找到满意结果，结束方法
+                    }
+
+                    if (bestResult == null || currentResult.similarity > bestResult.similarity) {
+                        bestResult = currentResult;
+                    }
+                }
+            }
+
+            if (bestResult != null) {
+                DanmakuSpider.log("🏁 迭代搜索结束，未找到高于50%相似度的结果。推送最佳匹配项 (相似度: " + bestResult.similarity + ")");
+                LeoDanmakuService.pushDanmakuDirect(bestResult.item, activity, true);
+            } else {
+                DanmakuSpider.log("🤷‍♂️ 迭代搜索结束，未找到任何有效弹幕");
+                if (activity != null && !activity.isFinishing()) {
+                    activity.runOnUiThread(() -> Utils.safeShowToast(activity, "Leo弹幕获取失败，请手动搜索"));
                 }
             }
         }).start();
