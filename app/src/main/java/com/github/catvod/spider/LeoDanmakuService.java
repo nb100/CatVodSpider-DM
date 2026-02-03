@@ -275,33 +275,56 @@ public class LeoDanmakuService {
 
         // 3. 筛选匹配集数的结果 (如果集数信息可用)
         List<DanmakuItem> matchedItems = new ArrayList<>();
-        if (!TextUtils.isEmpty(episodeInfo.getEpisodeNum())) {
-            for (DanmakuItem item : results) {
-                boolean isMatch = false;
-                try {
-                    int epNum = Integer.parseInt(episodeInfo.getEpisodeNum());
-                    String format1 = String.format("第%d集", epNum);
-                    String format2 = String.format("_%02d", epNum);
-                    String format3 = String.format("_%d", epNum);
-                    String format4 = String.format("第%d期", epNum);
-                    String format5 = String.format(" %d ", epNum); // e.g. "SP 1"
+        for (int i = 0; i < results.size(); i++) {
+            DanmakuItem item = results.get(i);
 
-                    if (item.epTitle.contains(format1) || item.epTitle.contains(format2) ||
-                        item.epTitle.contains(format3) || item.epTitle.contains(format4) ||
-                        item.epTitle.contains(format5) || item.shortTitle.equals(String.valueOf(epNum))) {
-                        isMatch = true;
-                    }
-                } catch (NumberFormatException e) {
-                    DanmakuSpider.log("集数格式错误: " + episodeInfo.getEpisodeNum());
-                }
+            boolean isMatch = true;
 
-                if (isMatch) {
-                    matchedItems.add(item);
+            // 检查年份匹配
+            if (!TextUtils.isEmpty(episodeInfo.getEpisodeYear())) {
+                if (!item.title.contains(episodeInfo.getEpisodeYear())) {
+                    isMatch = false;
                 }
             }
-        } else {
-            // 如果没有集数信息，所有结果都视为“匹配”
-            matchedItems.addAll(results);
+
+            // 如果年份匹配成功或没有年份信息，检查集数匹配
+            if (isMatch && !TextUtils.isEmpty(episodeInfo.getEpisodeNum())) {
+                String episodeNum = episodeInfo.getEpisodeNum();
+                try {
+                    int epNum = Integer.parseInt(episodeNum);
+                    if (epNum <= 0 || epNum > 9999) { // 防止过大的集数值
+                        isMatch = false;
+                    } else {
+                        // 定义多种可能的集数格式
+                        String[] formats = {
+                                String.format("第%d集", epNum),
+                                String.format("_%02d", epNum), // 补零格式，如 _01
+                                String.format("_%d", epNum),   // 不补零格式，如 _1
+                                String.format("第%d期", epNum),
+                                String.format("第%02d集", epNum), // 补零格式，如 第01集
+                                String.format("第%02d期", epNum)  // 补零格式，如 第01期
+                        };
+
+                        boolean matchFound = false;
+                        for (String format : formats) {
+                            if (item.epTitle.contains(format)) {
+                                matchFound = true;
+                                break;
+                            }
+                        }
+                        if (!matchFound) {
+                            isMatch = false;
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    DanmakuSpider.log("集数格式错误: " + episodeNum);
+                    isMatch = false;
+                }
+            }
+
+            if (isMatch) {
+                matchedItems.add(item);
+            }
         }
 
 
