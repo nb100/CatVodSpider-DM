@@ -1,6 +1,7 @@
 package com.github.catvod.spider;
 
 import android.app.Activity;
+import android.content.DialogInterface;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Handler;
@@ -1341,7 +1342,10 @@ public class DanmakuScanner {
                             DanmakuSpider.lastButtonClickTime = currentTime;
 
                             DanmakuSpider.log("[按钮长按] 打开搜索对话框");
-                            DanmakuUIHelper.showQRCodeDialog((Activity) parent.getContext(), "http://" + NetworkUtils.getLocalIpAddress() + ":9810");
+//                            DanmakuUIHelper.showQRCodeDialog((Activity) parent.getContext(), "http://" + NetworkUtils.getLocalIpAddress() + ":9810");
+
+                            // 显示菜单
+                            showLeoButtonMenu(activity);
                         }
                         return true;
                     }
@@ -1451,6 +1455,70 @@ public class DanmakuScanner {
         } catch (Exception e) {
             DanmakuSpider.log("❌ 注入按钮异常: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * 显示Leo按钮菜单
+     * @param activity
+     */
+    private static void showLeoButtonMenu(final Activity activity) {
+        try {
+            android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(activity);
+            builder.setTitle("Leo弹幕选项");
+
+            String[] options = new String[] {
+                    "📱 远程搜索/输入",
+                    "🔄 Auto推送开关",
+                    "⚙️ 弹幕配置"
+            };
+
+            builder.setItems(options, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    switch (which) {
+                        case 0: // 远程搜索/输入
+                            DanmakuSpider.log("[菜单] 打开远程搜索二维码");
+                            String qrUrl = "http://" + NetworkUtils.getLocalIpAddress() + ":9888";
+                            DanmakuUIHelper.showQRCodeDialog(activity, qrUrl);
+                            break;
+
+                        case 1: // 自动推送开关
+                            DanmakuConfig config = DanmakuConfigManager.getConfig(activity);
+                            // 切换自动推送状态
+                            config.setAutoPushEnabled(!config.isAutoPushEnabled());
+                            DanmakuConfigManager.saveConfig(activity, config);
+
+                            // 更新UI显示
+                            DanmakuSpider.log("自动推送弹幕状态切换: " + config.isAutoPushEnabled());
+                            Utils.safeShowToast(activity,
+                                    config.isAutoPushEnabled() ? "自动推送弹幕已开启" : "自动推送弹幕已关闭");
+
+                            // 如果关闭了自动推送，可以停止相关监控
+                            if (!config.isAutoPushEnabled()) {
+                                pendingPushes.clear();
+                                DanmakuSpider.log("[菜单] 已清空待推送队列");
+                            }
+
+                            break;
+
+                        case 2: // 设置
+                            DanmakuSpider.log("[菜单] 打开弹幕设置");
+                            DanmakuUIHelper.showConfigDialog(activity);
+                            break;
+                    }
+                }
+            });
+
+            builder.setNegativeButton("取消", null);
+
+            try {
+                builder.show();
+            } catch (Exception e) {
+                DanmakuSpider.log("显示菜单失败: " + e.getMessage());
+            }
+        } catch (Exception e) {
+            DanmakuSpider.log("创建菜单失败: " + e.getMessage());
         }
     }
 
