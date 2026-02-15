@@ -31,7 +31,7 @@ public class DanmakuScanner {
     public static EpisodeInfo lastEpisodeInfo = null;
 
     private static String currentSeriesName = "";
-    private static String currentEpisodeNum = "";
+    public static String currentEpisodeNum = "";
     private static long lastEpisodeChangeTime = 0;
     private static final long MIN_EPISODE_CHANGE_INTERVAL = 1000;
 
@@ -192,7 +192,7 @@ public class DanmakuScanner {
     private static EpisodeInfo getEpisodeInfo(Media media, Activity act) {
         // 提取剧集信息
         String seriesName = extractSeriesName(media.getTitle());
-        String episodeNum = extractEpisodeNum(media.getArtist());
+        String episodeNum = extractEpisodeNum(media.getArtist().replace("正在播放：", ""));
         String year = extractYear(media.getArtist());
         if (TextUtils.isEmpty(year)) {
             year = extractYear2(media.getTitle());
@@ -651,7 +651,7 @@ public class DanmakuScanner {
         // DanmakuSpider.log("提取剧集数，标题: " + title);
 
         // 预处理：去掉常见的画质、编码、文件大小等干扰信息
-        String processedTitle = preprocessTitle(title);
+        String processedTitle = preprocessTitle(title).trim();
 
         // 尝试各种集数格式匹配，按优先级从高到低
 
@@ -701,6 +701,8 @@ public class DanmakuScanner {
             if (!isLikelyFileSize(processedTitle, matcher.start(1), matcher.end(1))) {
                 // DanmakuSpider.log("匹配完整括号格式: " + num);
                 return num;
+            } else {
+                DanmakuSpider.log("排除文件大小的情况，跳过: " + num);
             }
         }
 
@@ -722,6 +724,8 @@ public class DanmakuScanner {
             if (isLikelyEpisodeNumber(processedTitle, numStr, start, end)) {
                 candidates.add(new MatchCandidate(numStr, start, end,
                         calculatePriority(processedTitle, numStr, start, end)));
+            } else {
+                DanmakuSpider.log("排除明显不是集数的情况，跳过: " + numStr);
             }
         }
 
@@ -739,6 +743,8 @@ public class DanmakuScanner {
             if (isLikelyEpisodeNumber(processedTitle, numStr, start, end)) {
                 candidates.add(new MatchCandidate(numStr, start, end,
                         calculatePriority(processedTitle, numStr, start, end) + 10)); // 额外加分
+            } else {
+                DanmakuSpider.log("排除文件名格式的情况，跳过: " + numStr);
             }
         }
 
@@ -757,8 +763,8 @@ public class DanmakuScanner {
             return best.number;
         }
 
-        // 6. 最后的兜底：匹配纯数字，但要严格排除干扰
-        Pattern lastResortPattern = Pattern.compile("\\b([1-9][0-9]{0,2})\\b");
+        // 6. 匹配纯数字，但要严格排除干扰
+        Pattern lastResortPattern = Pattern.compile("\\b([0-9][0-9]{0,2})\\b");
         matcher = lastResortPattern.matcher(processedTitle);
 
         List<String> possibleEpisodes = new ArrayList<>();
@@ -773,13 +779,47 @@ public class DanmakuScanner {
             }
         }
 
+        // 7. 匹配开头或空格后的数字
+        Pattern startOrSpacePattern = Pattern.compile(
+                "(?:^|\\s)([0-9]{1,3})"
+        );
+        matcher = startOrSpacePattern.matcher(processedTitle);
+        while (matcher.find()) {
+            String numStr = matcher.group(1);
+            int start = matcher.start(1);
+            int end = matcher.end(1);
+
+            if (isPureEpisodeNumber(processedTitle, numStr, start, end)) {
+                if (!possibleEpisodes.contains(numStr)) {
+                    possibleEpisodes.add(numStr);
+                }
+            }
+        }
+
+        // 8. 匹配结尾的数字
+        Pattern endPattern = Pattern.compile(
+                "([0-9]{1,3})$"
+        );
+        matcher = endPattern.matcher(processedTitle);
+        while (matcher.find()) {
+            String numStr = matcher.group(1);
+            int start = matcher.start(1);
+            int end = matcher.end(1);
+
+            if (isPureEpisodeNumber(processedTitle, numStr, start, end)) {
+                if (!possibleEpisodes.contains(numStr)) {
+                    possibleEpisodes.add(numStr);
+                }
+            }
+        }
+
         // 如果有多个可能的集数，选择看起来最合理的
         if (!possibleEpisodes.isEmpty()) {
             // 优先选择1-99之间的数字（集数通常在这个范围）
             for (String num : possibleEpisodes) {
                 int value = Integer.parseInt(num);
                 if (value >= 1 && value <= 99) {
-                    // DanmakuSpager.log("兜底匹配到集数: " + num);
+                    // DanmakuSpider.log("兜底匹配到集数: " + num);
                     return num;
                 }
             }
@@ -787,6 +827,8 @@ public class DanmakuScanner {
             // DanmakuSpider.log("兜底匹配到集数: " + possibleEpisodes.get(0));
             return possibleEpisodes.get(0);
         }
+
+        DanmakuSpider.log("未能提取到集数，标题: " + title);
 
         return "";
     }
@@ -807,13 +849,16 @@ public class DanmakuScanner {
                 .replaceAll("\\b(?:2160|1080|720|480)[pP]\\b", " ")
                 .replaceAll("\\b(?:4K|2K|HD|SD|FHD|UHD)\\b", " ")
                 .replaceAll("\\b(?:x264|x265|H264|H265|AVC|HEVC)\\b", " ")
-                .replaceAll("\\b(?:AAC|AC3|DTS|FLAC)\\b", " ");
+                .replaceAll("\\b(?:AAC|AC3|DTS|FLAC)\\b", " ")
+                .replaceAll("高码率|高码", " ");
 
         // 移除版本信息：v2, ver2.0 等
         processed = processed.replaceAll("\\b[vV](?:[0-9]+(?:\\.[0-9]+)?)\\b", " ");
 
         // 合并多个空格
         processed = processed.replaceAll("\\s+", " ").trim();
+
+        DanmakuSpider.log("预处理标题: " + title + " -> " + processed);
 
         return processed.isEmpty() ? title : processed;
     }
@@ -1099,6 +1144,10 @@ public class DanmakuScanner {
         // 检查是否有有效的剧集名
         if (lastEpisodeInfo.getEpisodeNames() == null || lastEpisodeInfo.getEpisodeNames().isEmpty()) {
             DanmakuSpider.log("⚠️ 未检测到剧集名，不进行换集检测");
+            return;
+        }
+        if (TextUtils.isEmpty(lastEpisodeInfo.getEpisodeNum())) {
+            DanmakuSpider.log("⚠️ 未检测到集数，不进行换集检测");
             return;
         }
 
