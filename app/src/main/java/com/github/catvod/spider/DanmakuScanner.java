@@ -207,7 +207,7 @@ public class DanmakuScanner {
         if (!extractTitle2.equals(extractTitle1)) {
             extractTitle3 = DanmakuUtils.extractTitle2(media.getTitle());
         }
-        String cachedName = SharedPreferencesService.getSearchKeywordCache(act, media.getTitle());
+        String cachedName = SharedPreferencesService.getSearchKeywordCache(act, extractTitle2);
 
         if (!TextUtils.isEmpty(cachedName) && !cachedName.equals(media.getTitle())) {
             episodeNames.add(cachedName);
