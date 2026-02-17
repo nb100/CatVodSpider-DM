@@ -1516,14 +1516,26 @@ public class DanmakuScanner {
             android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(activity);
             builder.setTitle("Leo弹幕选项");
 
-            String[] options = new String[] {
-                    "📱 远程搜索/输入",
-                    "🔄 Auto推送开关",
-                    "\uD83D\uDCAC 弹幕配置",
-                    "\uD83C\uDFA8 布局配置",
-                    "✨ 弹幕UI风格",
-                    "\uD83D\uDCDD 查看日志"
-            };
+            // 构建菜单选项列表
+            java.util.List<String> optionsList = new java.util.ArrayList<>();
+            optionsList.add("📱 远程搜索/输入");
+            optionsList.add("🔄 Auto推送开关");
+            optionsList.add("💬 弹幕配置");
+            optionsList.add("🎨 布局配置");
+            optionsList.add("✨ 弹幕UI风格");
+            optionsList.add("📝 查看日志");
+
+            // 只有当Go代理资源文件存在时才添加相关按钮
+            final boolean isGoProxyExists = GoProxyManager.isGoProxyAssetExists();
+            if (isGoProxyExists) {
+                final String proxyStatus = GoProxyManager.isProxyRunning.get() ? "运行中" : "已停止";
+                final String proxyHealth = GoProxyManager.isProxyHealthy() ? "健康" : "异常";
+                final String proxyStatusText = GoProxyManager.isProxyRunning.get() ? proxyStatus + " | " + proxyHealth : proxyStatus;
+                optionsList.add("🔌 Go代理状态 [" + proxyStatusText + "]");
+                optionsList.add("🔄 重启Go代理");
+            }
+
+            String[] options = optionsList.toArray(new String[0]);
 
             builder.setItems(options, new DialogInterface.OnClickListener() {
                 @Override
@@ -1570,6 +1582,28 @@ public class DanmakuScanner {
                             DanmakuSpider.log("[菜单] 打开查看日志");
                             DanmakuUIHelper.showLogDialog(activity);
                             break;
+                    }
+
+                    // 处理Go代理相关按钮（如果存在）
+                    if (isGoProxyExists) {
+                        switch (which) {
+                            case 6: // Go代理状态
+                                String status = GoProxyManager.isProxyRunning.get() ? "运行中" : "已停止";
+                                String health = GoProxyManager.isProxyHealthy() ? "健康" : "异常";
+                                String toastMsg = GoProxyManager.isProxyRunning.get() ?
+                                        "Go代理状态: " + status + "\n健康检查: " + health :
+                                        "Go代理状态: " + status;
+                                Utils.safeShowToast(activity, toastMsg);
+                                DanmakuSpider.log("[菜单] 查看Go代理状态: " + toastMsg);
+                                break;
+
+                            case 7: // 重启Go代理
+                                DanmakuSpider.log("[菜单] 用户触发Go代理重启");
+                                GoProxyManager.isProxyRunning.set(false);
+                                GoProxyManager.startGoProxyOnce(activity.getApplicationContext());
+                                Utils.safeShowToast(activity, "Go代理重启中，请稍候...");
+                                break;
+                        }
                     }
                 }
             });

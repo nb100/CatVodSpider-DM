@@ -181,10 +181,9 @@ public class GoProxyManager {
             } catch (Exception jsonEx) {
                 // JSON解析失败，继续尝试其他格式
                 SpiderDebug.log("GoProxy 健康检查异常： " + jsonEx.getMessage());
-                return false;
             }
 
-            return true;
+            return false;
         } catch (Exception e) {
             SpiderDebug.log("GoProxy 健康检查异常: " + e.getMessage());
             return false;
@@ -193,5 +192,26 @@ public class GoProxyManager {
 
     public static void execute(Runnable runnable) {
         executor.execute(runnable);
+    }
+
+    /**
+     * 检查Go代理可执行文件是否存在于assets中
+     * @return true 如果资源文件存在
+     */
+    public static boolean isGoProxyAssetExists() {
+        try {
+            if (TextUtils.isEmpty(goProxyExecutableName)) {
+                List<String> abs = Arrays.asList(Build.SUPPORTED_ABIS);
+                goProxyExecutableName = abs.contains("arm64-v8a") ? "goProxy-arm64" : "goProxy-arm";
+            }
+            InputStream is = Objects.requireNonNull(get().getClass().getClassLoader()).getResourceAsStream("assets/" + goProxyExecutableName);
+            if (is != null) {
+                is.close();
+                return true;
+            }
+        } catch (Exception e) {
+            SpiderDebug.log("检查Go代理资源文件失败: " + e.getMessage());
+        }
+        return false;
     }
 }

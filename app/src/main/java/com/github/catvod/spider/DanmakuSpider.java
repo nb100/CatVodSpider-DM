@@ -189,6 +189,22 @@ public class DanmakuSpider extends Spider {
                     "当前: " + config.getDanmakuStyle());
             list.put(styleVod);
 
+            // 只有当Go代理资源文件存在时才显示相关按钮
+            if (GoProxyManager.isGoProxyAssetExists()) {
+                // 创建Go代理状态按钮
+                String proxyStatus = GoProxyManager.isProxyRunning.get() ? "运行中" : "已停止";
+                String proxyHealth = GoProxyManager.isProxyHealthy() ? "健康" : "异常";
+                String proxyStatusText = GoProxyManager.isProxyRunning.get() ? proxyStatus + " | " + proxyHealth : proxyStatus;
+                JSONObject proxyStatusVod = createVod("proxy_status", "Go代理状态", "",
+                        proxyStatusText);
+                list.put(proxyStatusVod);
+
+                // 创建Go代理重启按钮
+                JSONObject proxyRestartVod = createVod("proxy_restart", "重启Go代理", "",
+                        "点击重启代理服务");
+                list.put(proxyRestartVod);
+            }
+
             result.put("list", list);
             result.put("page", 1);
             result.put("pagecount", 1);
@@ -236,6 +252,28 @@ public class DanmakuSpider extends Spider {
                                     DanmakuUIHelper.showLpConfigDialog(ctx);
                                 } else if (id.equals("danmaku_style")) {
                                     DanmakuUIHelper.showDanmakuStyleDialog(ctx);
+                                } else if (id.equals("proxy_status")) {
+                                    // 显示Go代理状态详情
+                                    String status = GoProxyManager.isProxyRunning.get() ? "运行中" : "已停止";
+                                    String health = GoProxyManager.isProxyHealthy() ? "健康" : "异常";
+                                    String toastMsg = GoProxyManager.isProxyRunning.get() ?
+                                            "Go代理状态: " + status + "\n健康检查: " + health :
+                                            "Go代理状态: " + status;
+                                    Utils.safeShowToast(ctx, toastMsg);
+                                    refreshCategoryContent(ctx);
+                                } else if (id.equals("proxy_restart")) {
+                                    // 重启Go代理
+                                    DanmakuSpider.log("用户触发Go代理重启");
+                                    GoProxyManager.isProxyRunning.set(false);
+                                    GoProxyManager.startGoProxyOnce(ctx.getApplicationContext());
+                                    Utils.safeShowToast(ctx, "Go代理重启中，请稍候...");
+                                    // 延迟刷新以显示最新状态
+                                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            refreshCategoryContent(ctx);
+                                        }
+                                    }, 3000);
                                 }
                             } catch (Exception e) {
                                 DanmakuSpider.log("显示对话框失败: " + e.getMessage());
@@ -254,12 +292,19 @@ public class DanmakuSpider extends Spider {
             vod.put("vod_id", id);
             vod.put("vod_name", id.equals("auto_push") ? "自动推送弹幕" :
                     id.equals("log") ? "查看日志" : id.equals("lp_config") ? "布局配置" :
-                            id.equals("danmaku_style") ? "弹幕UI风格" : "Leo弹幕设置");
+                            id.equals("danmaku_style") ? "弹幕UI风格" :
+                            id.equals("proxy_status") ? "Go代理状态" :
+                            id.equals("proxy_restart") ? "重启Go代理" : "Leo弹幕设置");
             vod.put("vod_pic", "");
+            String proxyStatus = GoProxyManager.isProxyRunning.get() ? "运行中" : "已停止";
+            String proxyHealth = GoProxyManager.isProxyHealthy() ? "健康" : "异常";
+            String proxyStatusText = GoProxyManager.isProxyRunning.get() ? proxyStatus + " | " + proxyHealth : proxyStatus;
             vod.put("vod_remarks", id.equals("auto_push") ?
                     (config.isAutoPushEnabled() ? "已开启" : "已关闭") :
                     id.equals("log") ? "调试信息" : id.equals("lp_config") ? "调整弹窗大小和透明度" :
-                            id.equals("danmaku_style") ? "当前: " + config.getDanmakuStyle() : "请稍候...");
+                            id.equals("danmaku_style") ? "当前: " + config.getDanmakuStyle() :
+                            id.equals("proxy_status") ? proxyStatusText :
+                            id.equals("proxy_restart") ? "点击重启代理服务" : "请稍候...");
             vod.put("vod_play_url", "");
             vod.put("vod_play_from", "");
             JSONObject result = new JSONObject();
@@ -288,6 +333,11 @@ public class DanmakuSpider extends Spider {
                         item.put("vod_remarks", config.isAutoPushEnabled() ? "已开启" : "已关闭");
                     } else if ("danmaku_style".equals(item.getString("vod_id"))) {
                         item.put("vod_remarks", "当前: " + config.getDanmakuStyle());
+                    } else if ("proxy_status".equals(item.getString("vod_id"))) {
+                        String status = GoProxyManager.isProxyRunning.get() ? "运行中" : "已停止";
+                        String health = GoProxyManager.isProxyHealthy() ? "健康" : "异常";
+                        String statusText = GoProxyManager.isProxyRunning.get() ? status + " | " + health : status;
+                        item.put("vod_remarks", statusText);
                     }
                 }
             }
