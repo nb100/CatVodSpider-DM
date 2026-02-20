@@ -175,6 +175,47 @@ public class GoProxyManager {
     }
 
     public static synchronized boolean isProxyHealthy() {
+        return isProxyHealthyInternal();
+    }
+
+    /**
+     * 内部健康检查方法，支持在主线程中安全调用
+     * 如果在主线程中调用，会自动切换到后台线程执行
+     */
+    private static boolean isProxyHealthyInternal() {
+        // 检查当前是否在主线程
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            // 在主线程中，使用同步方式在后台线程执行并等待结果
+            final java.util.concurrent.atomic.AtomicBoolean result = new java.util.concurrent.atomic.AtomicBoolean(false);
+            final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+
+            executor.execute(() -> {
+                try {
+                    result.set(performHealthCheck());
+                } finally {
+                    latch.countDown();
+                }
+            });
+
+            try {
+                // 等待结果，最多等待2秒（1秒超时 + 1秒缓冲）
+                latch.await(2000, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log("GoProxy 健康检查等待中断");
+            }
+            return result.get();
+        } else {
+            // 不在主线程，直接执行
+            return performHealthCheck();
+        }
+    }
+
+    /**
+     * 执行实际的健康检查（包含网络请求）
+     * 此方法必须在非主线程中调用
+     */
+    private static boolean performHealthCheck() {
         try {
             // 记录请求开始时间
             long startTime = System.currentTimeMillis();
