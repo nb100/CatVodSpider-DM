@@ -277,7 +277,7 @@ public class DanmakuScanner {
                     DanmakuSpider.log("❌ 播放检查定时器异常: " + e.getMessage());
                 }
             }
-        }, 2000, 500); // 2秒后开始，每0.5秒检查一次
+        }, 2000, 2000); // 2秒后开始，每2秒检查一次
     }
 
     // 检查播放状态
