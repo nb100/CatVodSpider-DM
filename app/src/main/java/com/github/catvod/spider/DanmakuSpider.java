@@ -195,6 +195,11 @@ public class DanmakuSpider extends Spider {
                     config.isAutoPushEnabled() ? "已开启" : "已关闭");
             list.put(autoPushVod);
 
+            // 创建静默模式按钮
+            JSONObject silentModeVod = createVod("silent_mode", "静默模式", "",
+                    config.isSilentMode() ? "已开启" : "已关闭");
+            list.put(silentModeVod);
+
             // 创建查看日志按钮（统一日志查看器）
             JSONObject logVod = createVod("log", "查看日志", "", "弹幕/Go代理日志");
             list.put(logVod);
@@ -257,12 +262,24 @@ public class DanmakuSpider extends Spider {
                                     // 切换自动推送状态
                                     config.setAutoPushEnabled(!config.isAutoPushEnabled());
                                     DanmakuConfigManager.saveConfig(ctx, config);
-
-                                    // 更新UI显示
-                                    DanmakuSpider.log("自动推送状态切换: " + config.isAutoPushEnabled());
+                                
+                                    // 更新 UI 显示
+                                    DanmakuSpider.log("自动推送状态切换：" + config.isAutoPushEnabled());
                                     Utils.safeShowToast(ctx,
                                             config.isAutoPushEnabled() ? "自动推送已开启" : "自动推送已关闭");
-
+                                
+                                    // 重新加载页面以更新状态显示
+                                    refreshCategoryContent(ctx);
+                                } else if (id.equals("silent_mode")) {
+                                    // 切换静默模式状态
+                                    config.setSilentMode(!config.isSilentMode());
+                                    DanmakuConfigManager.saveConfig(ctx, config);
+                                
+                                    // 更新 UI 显示
+                                    DanmakuSpider.log("静默模式状态切换：" + config.isSilentMode());
+                                    Utils.safeShowToast(ctx,
+                                            config.isSilentMode() ? "静默模式已开启" : "静默模式已关闭");
+                                
                                     // 重新加载页面以更新状态显示
                                     refreshCategoryContent(ctx);
                                 } else if (id.equals("log")) {
@@ -310,18 +327,21 @@ public class DanmakuSpider extends Spider {
             JSONObject vod = new JSONObject();
             vod.put("vod_id", id);
             vod.put("vod_name", id.equals("auto_push") ? "自动推送弹幕" :
+                    id.equals("silent_mode") ? "静默模式" :
                     id.equals("log") ? "查看日志" : id.equals("lp_config") ? "布局配置" :
-                            id.equals("danmaku_style") ? "弹幕UI风格" :
-                            id.equals("proxy_status") ? "Go代理状态" :
-                            id.equals("proxy_restart") ? "重启Go代理" : "Leo弹幕设置");
+                            id.equals("danmaku_style") ? "弹幕 UI 风格" :
+                            id.equals("proxy_status") ? "Go 代理状态" :
+                            id.equals("proxy_restart") ? "重启 Go 代理" : "Leo 弹幕设置");
             vod.put("vod_pic", "");
             String proxyStatus = GoProxyManager.isProxyRunning.get() ? "运行中" : "已停止";
             String proxyHealth = GoProxyManager.isProxyHealthy() ? "健康" : "异常";
             String proxyStatusText = GoProxyManager.isProxyRunning.get() ? proxyStatus + " | " + proxyHealth : proxyStatus;
             vod.put("vod_remarks", id.equals("auto_push") ?
                     (config.isAutoPushEnabled() ? "已开启" : "已关闭") :
-                    id.equals("log") ? "弹幕/Go代理日志" : id.equals("lp_config") ? "调整弹窗大小和透明度" :
-                            id.equals("danmaku_style") ? "当前: " + config.getDanmakuStyle() :
+                    id.equals("silent_mode") ?
+                            (config.isSilentMode() ? "已开启" : "已关闭") :
+                    id.equals("log") ? "弹幕/Go 代理日志" : id.equals("lp_config") ? "调整弹窗大小和透明度" :
+                            id.equals("danmaku_style") ? "当前：" + config.getDanmakuStyle() :
                             id.equals("proxy_status") ? proxyStatusText :
                             id.equals("proxy_restart") ? "点击重启代理服务" : "请稍候...");
             vod.put("vod_play_url", "");
@@ -345,13 +365,15 @@ public class DanmakuSpider extends Spider {
                 JSONArray list = result.getJSONArray("list");
                 DanmakuConfig config = DanmakuConfigManager.getConfig(ctx);
 
-                // 找到自动推送按钮并更新其remark
+                // 找到自动推送按钮并更新其 remark
                 for (int i = 0; i < list.length(); i++) {
                     JSONObject item = list.getJSONObject(i);
                     if ("auto_push".equals(item.getString("vod_id"))) {
                         item.put("vod_remarks", config.isAutoPushEnabled() ? "已开启" : "已关闭");
+                    } else if ("silent_mode".equals(item.getString("vod_id"))) {
+                        item.put("vod_remarks", config.isSilentMode() ? "已开启" : "已关闭");
                     } else if ("danmaku_style".equals(item.getString("vod_id"))) {
-                        item.put("vod_remarks", "当前: " + config.getDanmakuStyle());
+                        item.put("vod_remarks", "当前：" + config.getDanmakuStyle());
                     } else if ("proxy_status".equals(item.getString("vod_id"))) {
                         String status = GoProxyManager.isProxyRunning.get() ? "运行中" : "已停止";
                         String health = GoProxyManager.isProxyHealthy() ? "健康" : "异常";

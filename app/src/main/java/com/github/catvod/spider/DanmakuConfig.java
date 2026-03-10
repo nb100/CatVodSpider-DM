@@ -34,6 +34,10 @@ public class DanmakuConfig {
      * 弹幕搜索框样式
      */
     public String danmakuStyle;
+    /**
+     * 静默模式，开启时不再弹出任何提示信息
+     */
+    public boolean silentMode;
 
     public DanmakuConfig() {
         // 设置默认值
@@ -43,6 +47,7 @@ public class DanmakuConfig {
         lpAlpha = 0.9f;
         autoPushEnabled = false;
         danmakuStyle = "模板一";
+        silentMode = true;
     }
 
     public void updateFromJson(JSONObject json) {
@@ -64,6 +69,9 @@ public class DanmakuConfig {
         }
         if (json.has("danmakuStyle")) {
             setDanmakuStyle(json.optString("danmakuStyle", danmakuStyle));
+        }
+        if (json.has("silentMode")) {
+            setSilentMode(json.optBoolean("silentMode", silentMode));
         }
     }
 
@@ -113,5 +121,13 @@ public class DanmakuConfig {
 
     public void setDanmakuStyle(String danmakuStyle) {
         this.danmakuStyle = danmakuStyle;
+    }
+
+    public boolean isSilentMode() {
+        return silentMode;
+    }
+
+    public void setSilentMode(boolean silentMode) {
+        this.silentMode = silentMode;
     }
 }

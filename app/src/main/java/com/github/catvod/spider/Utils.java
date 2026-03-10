@@ -59,7 +59,13 @@ public class Utils {
     }
 
     public static void safeShowToast(final Context context, final String message) {
+        // 检查静默模式
         if (context instanceof Activity) {
+            DanmakuConfig config = DanmakuConfigManager.getConfig((Activity) context);
+            if (config != null && config.isSilentMode()) {
+                DanmakuSpider.log("🔇 静默模式已开启，跳过 Toast 显示：" + message);
+                return;
+            }
             safeShowToast2((Activity) context, message);
         } else {
             new Handler(Looper.getMainLooper()).post(new Runnable() {
@@ -72,6 +78,12 @@ public class Utils {
     }
 
     public static void safeShowToast2(Activity activity, String message) {
+        // 检查静默模式
+        DanmakuConfig config = DanmakuConfigManager.getConfig(activity);
+        if (config != null && config.isSilentMode()) {
+            DanmakuSpider.log("🔇 静默模式已开启，跳过 Toast 显示：" + message);
+            return;
+        }
         if (activity != null && !activity.isFinishing()) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
                 if (activity.isDestroyed()) return;

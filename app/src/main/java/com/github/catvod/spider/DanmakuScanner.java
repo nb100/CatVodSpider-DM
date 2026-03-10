@@ -1527,10 +1527,11 @@ public class DanmakuScanner {
             // 构建菜单选项列表
             java.util.List<String> optionsList = new java.util.ArrayList<>();
             optionsList.add("📱 远程搜索/输入");
-            optionsList.add("🔄 Auto推送开关");
+            optionsList.add("🔄 Auto 推送开关");
+            optionsList.add("🔇 静默模式");
             optionsList.add("💬 弹幕配置");
             optionsList.add("🎨 布局配置");
-            optionsList.add("✨ 弹幕UI风格");
+            optionsList.add("✨ 弹幕 UI 风格");
             optionsList.add("📝 查看日志");
 
             // 只有当Go代理资源文件存在时才添加相关按钮
@@ -1560,33 +1561,46 @@ public class DanmakuScanner {
                             // 切换自动推送状态
                             config.setAutoPushEnabled(!config.isAutoPushEnabled());
                             DanmakuConfigManager.saveConfig(activity, config);
-
-                            // 更新UI显示
-                            DanmakuSpider.log("自动推送弹幕状态切换: " + config.isAutoPushEnabled());
+                        
+                            // 更新 UI 显示
+                            DanmakuSpider.log("自动推送弹幕状态切换：" + config.isAutoPushEnabled());
                             Utils.safeShowToast(activity,
                                     config.isAutoPushEnabled() ? "自动推送弹幕已开启" : "自动推送弹幕已关闭");
-
+                        
                             // 如果关闭了自动推送，可以停止相关监控
                             if (!config.isAutoPushEnabled()) {
                                 pendingPushes.clear();
                                 DanmakuSpider.log("[菜单] 已清空待推送队列");
                             }
-
+                        
+                            break;
+                        
+                        case 2: // 静默模式
+                            DanmakuConfig configSilent = DanmakuConfigManager.getConfig(activity);
+                            // 切换静默模式状态
+                            configSilent.setSilentMode(!configSilent.isSilentMode());
+                            DanmakuConfigManager.saveConfig(activity, configSilent);
+                        
+                            // 更新 UI 显示
+                            DanmakuSpider.log("静默模式状态切换：" + configSilent.isSilentMode());
+                            Utils.safeShowToast(activity,
+                                    configSilent.isSilentMode() ? "静默模式已开启" : "静默模式已关闭");
+                        
                             break;
 
-                        case 2: // 弹幕设置
+                        case 3: // 弹幕设置
                             DanmakuSpider.log("[菜单] 打开弹幕设置");
                             DanmakuUIHelper.showConfigDialog(activity);
                             break;
-                        case 3: // 布局配置
+                        case 4: // 布局配置
                             DanmakuSpider.log("[菜单] 打开布局配置");
                             DanmakuUIHelper.showLpConfigDialog(activity);
                             break;
-                        case 4: // 弹幕UI风格
-                            DanmakuSpider.log("[菜单] 打开弹幕UI风格");
+                        case 5: // 弹幕 UI 风格
+                            DanmakuSpider.log("[菜单] 打开弹幕 UI 风格");
                             DanmakuUIHelper.showDanmakuStyleDialog(activity);
                             break;
-                        case 5: // 查看日志（统一日志查看器）
+                        case 6: // 查看日志（统一日志查看器）
                             DanmakuSpider.log("[菜单] 打开统一日志查看器");
                             DanmakuUIHelper.showUnifiedLogDialog(activity);
                             break;
@@ -1595,7 +1609,7 @@ public class DanmakuScanner {
                     // 处理Go代理相关按钮（如果存在）
                     if (isGoProxyExists) {
                         switch (which) {
-                            case 6: // Go代理状态
+                            case 7: // Go 代理状态
                                 String status = GoProxyManager.isProxyRunning.get() ? "运行中" : "已停止";
                                 String health = GoProxyManager.isProxyHealthy() ? "健康" : "异常";
                                 String toastMsg = GoProxyManager.isProxyRunning.get() ?
@@ -1605,7 +1619,7 @@ public class DanmakuScanner {
                                 DanmakuSpider.log("[菜单] 查看Go代理状态: " + toastMsg);
                                 break;
 
-                            case 7: // 重启Go代理
+                            case 8: // 重启 Go 代理
                                 DanmakuSpider.log("[菜单] 用户触发Go代理重启");
                                 GoProxyManager.isProxyRunning.set(false);
                                 GoProxyManager.startGoProxyOnce(activity.getApplicationContext());
