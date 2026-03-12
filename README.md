@@ -21,7 +21,7 @@
        "api": "csp_DanmakuSpider",
        "searchable": 1,
        "ext": {
-           "apiUrl": "http://192.168.50.50:9321/87654321",
+           "apiUrl": "LogVar弹幕API端点",
            "autoPushEnabled": true,
            "danmakuStyle": "模板一",
            "lpAlpha": 0.9
@@ -44,9 +44,9 @@
        "type": 3,
        "api": "csp_DanmakuSpider",
        "searchable": 1,
-       "jar": "./danmu.jar",
+       "jar": "https://gh-proxy.org/https://github.com/Silent1566/CatVodSpider/raw/refs/heads/main/jar/danmu.jar",
        "ext": {
-           "apiUrl": "http://192.168.50.50:9321/87654321",
+           "apiUrl": "LogVar弹幕API端点",
            "autoPushEnabled": true,
            "danmakuStyle": "模板一",
            "lpAlpha": 0.9
@@ -77,6 +77,7 @@
 
 ### 💡 功能模块
 - **弹幕系统**：基于 [@leiatai](https://github.com/leiatai) 分享的源码开发
+  - 感谢 [LogVar](https://github.com/huangxd-/danmu_api) 提供的弹幕API 支持
 - **Go代理**：集成不夜分享的代理功能
   - [不夜发布页](https://github.com/vodspider/release)
   - [CatSpider仓库](https://github.com/vodspider/catspider)
