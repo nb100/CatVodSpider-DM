@@ -1174,23 +1174,11 @@ public class DanmakuScanner {
             DanmakuSpider.log("⏰ 距离上次换集: " + timeSinceLastChange + "ms");
             videoPlayStartTime = System.currentTimeMillis();
 
-            // 尝试获取下一个弹幕URL
-            DanmakuItem nextDanmakuItem = DanmakuManager.getNextDanmakuItem(Integer.parseInt(currentEpisodeNum), Integer.parseInt(lastEpisodeInfo.getEpisodeNum()));
+            // 更新记录
+            currentEpisodeNum = lastEpisodeInfo.getEpisodeNum();
+            lastEpisodeChangeTime = currentTime;
 
-            if (nextDanmakuItem != null) {
-                // 更新记录
-                currentEpisodeNum = lastEpisodeInfo.getEpisodeNum();
-                lastEpisodeChangeTime = currentTime;
-
-                // 生成推送key
-                String pushKey = generateSignature(lastEpisodeInfo);
-
-                // 延迟推送，等待视频播放
-                scheduleDelayedPush(nextDanmakuItem, activity, lastEpisodeInfo.getEpisodeNames().get(0), pushKey);
-            } else {
-                DanmakuSpider.log("⚠️ 无法直接获取下一个弹幕URL，重新查询");
-                iterativeAutoSearch(lastEpisodeInfo, activity);
-            }
+            iterativeAutoSearch(lastEpisodeInfo, activity);
         } else {
             // 不同的剧集系列，更新记录
             DanmakuSpider.log("🎬 剧集名: " + lastEpisodeInfo.getEpisodeNames().get(0) + ", 年份: " + lastEpisodeInfo.getEpisodeYear() + ", 季数: " + lastEpisodeInfo.getEpisodeSeasonNum() + ", 集数: " + lastEpisodeInfo.getEpisodeNum());
